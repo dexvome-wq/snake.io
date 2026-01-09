@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Snake Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background: #121212;
+  color: white;
+  text-align: center;
+}
+.card {
+  max-width: 400px;
+  margin: auto;
+  padding: 20px;
+  background: #1e1e1e;
+  border-radius: 10px;
+}
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+}
+canvas {
+  background: black;
+  display: block;
+  margin: auto;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card" id="login">
+  <h2>Login / Register</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+  <p id="msg"></p>
+</div>
+
+<div class="card" id="game" style="display:none;">
+  <h2>🐍 Snake</h2>
+  <p>High Score: <span id="high">0</span></p>
+  <canvas id="c" width="400" height="400"></canvas>
+</div>
+
+<script>
+let username = "";
+let highScore = 0;
+
+/* AUTH */
+async function register() {
+  await fetch("/register", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      username: user.value,
+      password: pass.value
+    })
+  });
+  msg.textContent = "Registered. Now login.";
+}
+
+async function login() {
+  const r = await fetch("/login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      username: user.value,
+      password: pass.value
+    })
+  });
+  const d = await r.json();
+  if (!d.ok) return msg.textContent = d.error;
+
+  username = user.value;
+  highScore = d.highScore;
+  document.getElementById("high").textContent = highScore;
+  login.style.display = "none";
+  game.style.display = "block";
+  startGame();
+}
+
+/* SNAKE GAME */
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let snake, food, dx, dy, score;
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp") dx = 0, dy = -20;
+  if (e.key === "ArrowDown") dx = 0, dy = 20;
+  if (e.key === "ArrowLeft") dx = -20, dy = 0;
+  if (e.key === "ArrowRight") dx = 20, dy = 0;
+});
+
+function startGame() {
+  snake = [{x:200,y:200}];
+  food = {x:100,y:100};
+  dx = 20; dy = 0;
+  score = 0;
+  setInterval(loop, 120);
+}
+
+function loop() {
+  ctx.clearRect(0,0,400,400);
+  let head = {x: snake[0].x + dx, y: snake[0].y + dy};
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    food = {
+      x: Math.floor(Math.random()*20)*20,
+      y: Math.floor(Math.random()*20)*20
+    };
+    if (score > highScore) {
+      highScore = score;
+      fetch("/score", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({username, score})
+      });
+      document.getElementById("high").textContent = highScore;
+    }
+  } else {
+    snake.pop();
+  }
+
+  ctx.fillStyle = "lime";
+  snake.forEach(p => ctx.fillRect(p.x,p.y,20,20));
+  ctx.fillStyle = "red";
+  ctx.fillRect(food.x,food.y,20,20);
+}
+</script>
+
+</body>
+</html>
